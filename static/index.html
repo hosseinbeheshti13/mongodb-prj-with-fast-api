@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+      integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
+      crossorigin="anonymous"
+    />
+    <link rel="stylesheet" href="./style.css" />
+    <title>Email Service</title>
+  </head>
+  <body>
+    <div class="container">
+      <div class="container-fluid">
+        <div class="row">
+          <div class="col-md-5">
+            <h2>Emails</h2>
+            <ul id="emailList" class="user-list"></ul>
+          </div>
+          <div class="col-md-7">
+            <h2>Users</h2>
+            <ul id="userList" class="user-list"></ul>
+            <form id="createUserForm">
+              <h2>Add new User</h2>
+              <input
+                type="text"
+                name="firstName"
+                placeholder="First Name"
+                required
+              />
+              <input
+                type="text"
+                name="lastName"
+                placeholder="Last Name"
+                required
+              />
+              <input type="text" name="image" placeholder="Image URL" />
+              <input type="submit" value="Add User" />
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      document
+        .getElementById("createUserForm")
+        .addEventListener("submit", async function (event) {
+          event.preventDefault();
+          const formData = new FormData(this);
+          const user = {
+            id: "",
+            first_name: formData.get("firstName"),
+            last_name: formData.get("lastName"),
+            image: formData.get("image"),
+          };
+          try {
+            const response = await fetch("http://127.0.0.1:8000/users/", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(user),
+            });
+            if (response.ok) {
+              const data = await response.json();
+              alert(data.message);
+              this.reset();
+              await loadUsers();
+            } else {
+              throw new Error("Failed to create user");
+            }
+          } catch (error) {
+            console.error("Error:", error);
+            alert("Failed to create user. Please try again.");
+          }
+        });
+
+      async function sendEmail(userId) {
+        const subject = prompt("Enter email subject:");
+        const body = prompt("Enter email body:");
+        if (subject && body) {
+          const email = {
+            sender: userId,
+            receivers: [userId],
+            subject: subject,
+            body: body,
+          };
+          try {
+            const response = await fetch("http://127.0.0.1:8000/emails/", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(email),
+            });
+            if (response.ok) {
+              const data = await response.json();
+              alert(data.message);
+              loadEmails();
+            } else {
+              throw new Error("Failed to send email");
+            }
+          } catch (error) {
+            console.error("Error:", error);
+            alert("Failed to send email. Please try again.");
+          }
+        }
+      }
+
+      async function deleteUser(userId) {
+        if (confirm("Are you sure you want to delete this user?")) {
+          try {
+            const response = await fetch(
+              `http://127.0.0.1:8000/users/${userId}`,
+              {
+                method: "DELETE",
+              }
+            );
+            if (response.ok) {
+              const data = await response.json();
+              alert(data.message);
+              loadUsers();
+            } else {
+              throw new Error("Failed to delete user");
+            }
+          } catch (error) {
+            console.error("Error:", error);
+            alert("Failed to delete user. Please try again.");
+          }
+        }
+      }
+
+      async function editUser(userId, firstName, lastName, image) {
+        const newFirstName = prompt("Enter new first name:", firstName);
+        const newLastName = prompt("Enter new last name:", lastName);
+        const newImage = prompt("Enter new image URL:", image);
+        if (newFirstName && newLastName && newImage) {
+          const updatedUser = {
+            first_name: newFirstName,
+            last_name: newLastName,
+            image: newImage,
+          };
+          try {
+            const response = await fetch(
+              `http://127.0.0.1:8000/users/${userId}`,
+              {
+                method: "PUT",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify(updatedUser),
+              }
+            );
+            if (response.ok) {
+              const data = await response.json();
+              alert(data.message);
+              loadUsers();
+            } else {
+              throw new Error("Failed to update user");
+            }
+          } catch (error) {
+            console.error("Error:", error);
+            alert("Failed to update user. Please try again.");
+          }
+        }
+      }
+
+      async function loadUsers() {
+        try {
+          const response = await fetch("http://127.0.0.1:8000/users/");
+          if (response.ok) {
+            const users = await response.json();
+            const userList = document.getElementById("userList");
+            userList.innerHTML = "";
+            users.forEach((user) => {
+              const listItem = document.createElement("li");
+              listItem.classList.add("user-item");
+              listItem.innerHTML = `
+                            <div>
+                                <strong>${user.first_name} ${user.last_name}</strong><br>
+                                <img src="${user.image}" alt="${user.first_name}">
+                            </div>
+                            <div>
+                                <button class="edit" onclick="editUser('${user._id}', '${user.first_name}', '${user.last_name}', '${user.image}')">Edit</button>
+                                <button onclick="deleteUser('${user._id}')">Delete</button>
+                                <button class="email" onclick="sendEmail('${user._id}')">Send Email</button>
+                            </div>
+                        `;
+              userList.appendChild(listItem);
+            });
+          } else {
+            throw new Error("Failed to load users");
+          }
+        } catch (error) {
+          console.error("Error:", error);
+          alert("Failed to load users. Please try again.");
+        }
+      }
+
+      // Function to load emails
+      async function loadEmails() {
+        try {
+          const response = await fetch("http://127.0.0.1:8000/emails/");
+          if (response.ok) {
+            const emails = await response.json();
+            const emailList = document.getElementById("emailList");
+            emailList.innerHTML = "";
+            emails.forEach((email) => {
+              const listItem = document.createElement("li");
+              listItem.classList.add("user-item");
+              listItem.innerHTML = `
+                            <div>
+                                <strong>From: ${email.sender}</strong><br>
+                                <strong>Subject: ${email.subject}</strong><br>
+                                ${email.body}
+                            </div>
+                        `;
+              emailList.appendChild(listItem);
+            });
+          } else {
+            throw new Error("Failed to load emails");
+          }
+        } catch (error) {
+          console.error("Error:", error);
+          alert("Failed to load emails. Please try again.");
+        }
+      }
+
+      loadUsers();
+      loadEmails();
+    </script>
+  </body>
+</html>
